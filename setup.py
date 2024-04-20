@@ -13,7 +13,7 @@ setup(
         'rule_engine',
         'python-socketio[client]'
     ],
-    url='https://github.com/cyberfly-io/data-shipper',
+    url='https://github.com/cyberfly-io/cyberfly-python-client-sdk',
     long_description=long_description,
     long_description_content_type='text/markdown'
 )

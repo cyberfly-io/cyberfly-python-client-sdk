@@ -1,6 +1,13 @@
 # cyberfly-client-sdk
 A python client sdk to interact with cyberfly node to pubsub and store data
 
+
+## Install
+
+```shell
+pip3 install cyberfly-client-sdk
+```
+
 ## Example
 
 ### listen on data

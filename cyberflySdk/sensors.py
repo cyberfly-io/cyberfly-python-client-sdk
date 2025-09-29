@@ -6,7 +6,7 @@ Integrates with sensor-library-python to provide unified sensor operations.
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,19 @@ class SensorManager:
         self.sensors: Dict[str, Any] = {}  # sensor_id -> sensor instance
         self.sensor_configs: Dict[str, SensorConfig] = {}  # sensor_id -> config
         self._sensor_factory = None
+        self._config_save_hook = None
+
+    def set_config_save_hook(self, callback):
+        """Register a callback to persist sensor configurations."""
+        self._config_save_hook = callback
+
+    def _persist_configs(self):
+        if self._config_save_hook:
+            try:
+                configs = [asdict(cfg) for cfg in self.sensor_configs.values()]
+                self._config_save_hook(configs)
+            except Exception as exc:
+                logger.error(f"Failed to persist sensor configuration: {exc}")
         
     def _get_sensor_factory(self):
         """Lazy import of sensor library to avoid dependency issues."""
@@ -68,15 +81,23 @@ class SensorManager:
             bool: True if sensor was added successfully
         """
         try:
+            if not config.enabled:
+                # Store config without instantiating hardware
+                self.sensor_configs[config.sensor_id] = config
+                if config.sensor_id in self.sensors:
+                    del self.sensors[config.sensor_id]
+                logger.info(f"Registered disabled sensor {config.sensor_id}")
+                return True
+
             create_sensor = self._get_sensor_factory()
             sensor = create_sensor(config.sensor_type, config.inputs)
-            
+
             self.sensors[config.sensor_id] = sensor
             self.sensor_configs[config.sensor_id] = config
-            
+
             logger.info(f"Added sensor {config.sensor_id} of type {config.sensor_type}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to add sensor {config.sensor_id}: {e}")
             return False
@@ -97,6 +118,7 @@ class SensorManager:
             if sensor_id in self.sensor_configs:
                 del self.sensor_configs[sensor_id]
             logger.info(f"Removed sensor {sensor_id}")
+            self._persist_configs()
             return True
         except Exception as e:
             logger.error(f"Failed to remove sensor {sensor_id}: {e}")
@@ -296,17 +318,79 @@ class SensorManager:
     def enable_sensor(self, sensor_id: str) -> bool:
         """Enable a sensor."""
         if sensor_id in self.sensor_configs:
-            self.sensor_configs[sensor_id].enabled = True
-            return True
+            config = self.sensor_configs[sensor_id]
+            config.enabled = True
+            added = self.add_sensor(config)
+            if added:
+                self._persist_configs()
+            return added
         return False
     
     def disable_sensor(self, sensor_id: str) -> bool:
         """Disable a sensor."""
         if sensor_id in self.sensor_configs:
             self.sensor_configs[sensor_id].enabled = False
+            if sensor_id in self.sensors:
+                del self.sensors[sensor_id]
+            self._persist_configs()
             return True
         return False
     
+    def configure_sensor(self, sensor_id: str, new_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update a sensor configuration at runtime."""
+        import time
+
+        existing_config = self.sensor_configs.get(sensor_id)
+        sensor_type = new_config.get('sensor_type') or (existing_config.sensor_type if existing_config else None)
+
+        if not sensor_type:
+            return {
+                "status": "error",
+                "error": "sensor_type is required when creating a new sensor",
+                "timestamp": time.time()
+            }
+
+        inputs = new_config.get('inputs', existing_config.inputs if existing_config else {})
+        enabled = new_config.get('enabled', existing_config.enabled if existing_config else True)
+        alias = new_config.get('alias', existing_config.alias if existing_config else None)
+
+        updated_config = SensorConfig(
+            sensor_id=sensor_id,
+            sensor_type=sensor_type,
+            inputs=inputs,
+            enabled=enabled,
+            alias=alias
+        )
+
+        previous_sensor = self.sensors.get(sensor_id)
+        previous_config = existing_config
+
+        if sensor_id in self.sensors:
+            del self.sensors[sensor_id]
+
+        added = self.add_sensor(updated_config)
+
+        if not added and enabled:
+            # Roll back to previous configuration if creation failed
+            if previous_config:
+                self.sensor_configs[sensor_id] = previous_config
+                if previous_sensor:
+                    self.sensors[sensor_id] = previous_sensor
+            return {
+                "status": "error",
+                "error": f"Failed to configure sensor {sensor_id}",
+                "timestamp": time.time()
+            }
+
+        self._persist_configs()
+
+        return {
+            "status": "success",
+            "sensor_id": sensor_id,
+            "config": asdict(updated_config),
+            "timestamp": time.time()
+        }
+
     def load_sensor_configs(self, configs: List[Dict[str, Any]]) -> List[str]:
         """
         Load multiple sensor configurations.
@@ -406,6 +490,24 @@ class SensorManager:
                     "command": "status",
                     "sensor_id": sensor_id,
                     "result": status,
+                    "timestamp": time.time()
+                }
+
+            elif action == 'configure':
+                if not sensor_id:
+                    return {
+                        "command": "configure",
+                        "status": "error",
+                        "error": "sensor_id is required for configure command",
+                        "timestamp": time.time()
+                    }
+
+                config_payload = command.get('config', {})
+                result = self.configure_sensor(sensor_id, config_payload)
+                return {
+                    "command": "configure",
+                    "sensor_id": sensor_id,
+                    "result": result,
                     "timestamp": time.time()
                 }
             

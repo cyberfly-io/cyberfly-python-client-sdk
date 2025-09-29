@@ -90,6 +90,18 @@ sensor_id: sensor_type (enabled/disabled) alias
 
 Use the `sensor_id` from this output in the IoT platform payloads (for example, `"sensor_id": "temp_sensor_1"`).
 
+### Providing Sensor Inputs (GPIO pins, I2C addresses, etc.)
+
+Some sensors need extra information—like the GPIO pin number or I2C address—so the SDK knows how to talk to them. You can set those values in three different ways:
+
+1. **During manual setup (`cyberfly-device setup`)** – when you choose the manual option, the wizard prompts for the required inputs based on the sensor type (for example, `GPIO pin number` for a PIR sensor or `I2C address` for an LCD). You can accept the suggested defaults or enter your own values from your wiring diagram.
+2. **By editing `sensor_config.json`** – every sensor in `~/.cyberfly/sensor_config.json` has an `inputs` block. Update those fields if you change your wiring later. Example: `"inputs": {"pin_no": 17}`.
+3. **From the IoT platform UI (optional)** – if your UI can push configuration updates, send a `{"sensor_command": {"action": "configure", ...}}` payload with the new inputs. The SDK merges those values without restarting the device.
+
+Make sure the `inputs` settings match your hardware wiring—the CLI uses them when it instantiates each sensor.
+
+Whenever sensor settings change through the UI, the device automatically saves the new `sensor_config.json`, so the configuration persists across restarts.
+
 ## IoT Platform Commands
 
 Once your device is running, you can send commands from the IoT platform UI:
@@ -121,6 +133,24 @@ Once your device is running, you can send commands from the IoT platform UI:
   }
 }
 ```
+
+### Configure or Update Sensors
+```json
+{
+  "sensor_command": {
+    "action": "configure",
+    "sensor_id": "relay_1",
+    "config": {
+      "sensor_type": "dout",
+      "inputs": {"pin_no": 17},
+      "alias": "Main Relay",
+      "enabled": true
+    }
+  }
+}
+```
+
+The device applies the change immediately and writes the updated configuration to `~/.cyberfly/sensor_config.json`. Send a follow-up `{"sensor_command": {"action": "status", "sensor_id": "relay_1"}}` or `{"sensor_command": {"action": "list"}}` to confirm the update.
 
 ### Control Output Devices
 

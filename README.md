@@ -39,6 +39,32 @@ Send commands from the IoT platform UI:
 
 See the [No-Code Guide](docs/no-code-guide.md) for detailed instructions.
 
+### 4. Configure Sensors from the IoT Platform UI
+To add a new sensor or update wiring without touching the device, send a configuration payload from the IoT platform:
+
+1. Open the device command composer in the IoT platform UI.
+2. Choose the JSON payload mode.
+3. Use the `configure` action to supply the sensor details.
+
+Example — create or update a relay on GPIO17:
+
+```json
+{
+  "sensor_command": {
+    "action": "configure",
+    "sensor_id": "relay_1",
+    "config": {
+      "sensor_type": "dout",
+      "inputs": {"pin_no": 17},
+      "alias": "Main Relay",
+      "enabled": true
+    }
+  }
+}
+```
+
+The device merges this into its live configuration and writes the updated settings to `~/.cyberfly/sensor_config.json`, so the change persists after reboot. Send a follow-up `{"sensor_command": {"action": "status", "sensor_id": "relay_1"}}` to confirm the update or use `{"sensor_command": {"action": "list"}}` to see every configured sensor.
+
 ## 👨‍💻 Developer Usage
 
 ## Example
@@ -145,6 +171,7 @@ Send these commands from your IoT platform UI:
 > - Run `cyberfly-device status` to print every configured sensor in the format `sensor_id: sensor_type (enabled/disabled) alias`.
 > - The same information lives in `~/.cyberfly/sensor_config.json`; open it to copy the IDs directly.
 > - When you add sensors manually during `cyberfly-device setup`, you can supply a custom ID or accept the suggested one (e.g., `dht11_1`).
+> - The setup wizard also asks for required inputs (like `pin_no` or `address`). You can edit them later in `sensor_config.json` or via a `{"sensor_command": {"action": "configure"}}` payload from the platform UI.
 >
 > Use those `sensor_id` values in the payloads below.
 

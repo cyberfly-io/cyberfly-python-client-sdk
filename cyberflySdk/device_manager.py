@@ -294,6 +294,17 @@ class CyberFlyDeviceManager:
             self.logger.info(f"Loaded {len(loaded_sensors)} sensors: {loaded_sensors}")
         else:
             self.logger.warning("No sensor configuration found")
+
+        def save_sensor_configs(configs: List[Dict[str, Any]]):
+            try:
+                payload = {"sensors": configs}
+                with open(self.sensor_config_file, 'w') as f:
+                    json.dump(payload, f, indent=2)
+                self.logger.info("Sensor configuration updated from IoT platform")
+            except Exception as exc:
+                self.logger.error(f"Failed to persist sensor configuration: {exc}")
+
+        client.sensor_manager.set_config_save_hook(save_sensor_configs)
         
         # Set up command handler
         @client.on_message()

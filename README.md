@@ -140,6 +140,14 @@ The SDK includes integrated support for 20+ sensor types:
 
 Send these commands from your IoT platform UI:
 
+> 💡 **Finding your sensor IDs**
+>
+> - Run `cyberfly-device status` to print every configured sensor in the format `sensor_id: sensor_type (enabled/disabled) alias`.
+> - The same information lives in `~/.cyberfly/sensor_config.json`; open it to copy the IDs directly.
+> - When you add sensors manually during `cyberfly-device setup`, you can supply a custom ID or accept the suggested one (e.g., `dht11_1`).
+>
+> Use those `sensor_id` values in the payloads below.
+
 #### 📖 **Basic Commands**
 ```json
 // Read all sensors

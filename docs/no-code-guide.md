@@ -69,6 +69,27 @@ cyberfly-device config
 #### View logs
 Logs are automatically saved to `~/.cyberfly/device.log`
 
+### Finding Your Sensor IDs
+
+Sensor IDs are created in two places:
+
+1. **During setup** – when you add a sensor manually, the wizard displays the generated `sensor_id` (for example, `dht11_1`). Make a note of it, or provide your own ID when prompted.
+2. **In the configuration files** – open `~/.cyberfly/sensor_config.json` to see every sensor definition together with its `sensor_id`, type, inputs, and optional alias.
+
+You can also list them at any time with:
+
+```bash
+cyberfly-device status
+```
+
+This command prints each configured sensor in the format:
+
+```
+sensor_id: sensor_type (enabled/disabled) alias
+```
+
+Use the `sensor_id` from this output in the IoT platform payloads (for example, `"sensor_id": "temp_sensor_1"`).
+
 ## IoT Platform Commands
 
 Once your device is running, you can send commands from the IoT platform UI:
